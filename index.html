@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taprobane Brew | The 2026 Collection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@200;300;400&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #d4af37; --dark: #050505; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--dark); color: #e5e5e5; overflow-x: hidden; cursor: none; }
+        h1, h2, h3, .serif { font-family: 'Cormorant Garamond', serif; }
+        .text-gold { color: var(--gold); }
+        .bg-gold { background-color: var(--gold); }
+        .border-gold { border-color: var(--gold); }
+
+        /* Custom Cursor */
+        #cursor { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9999; mix-blend-mode: difference; }
+        #cursor-follower { width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 50%; position: fixed; pointer-events: none; z-index: 9998; transition: transform 0.1s ease-out; }
+
+        /* Preloader */
+        #preloader { position: fixed; inset: 0; background: #000; z-index: 10000; display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        .loader-line { width: 0%; height: 1px; background: var(--gold); margin-top: 20px; }
+
+        /* Scroll Progress */
+        #progress-bar { position: fixed; top: 0; left: 0; height: 2px; background: var(--gold); width: 0%; z-index: 9000; }
+
+        /* 3D Canvas */
+        #canvas-container { position: fixed; inset: 0; z-index: -1; opacity: 0.4; pointer-events: none; }
+
+        /* Mobile Menu */
+        #mobile-menu { transform: translateY(-100%); transition: transform 0.8s cubic-bezier(0.77, 0, 0.175, 1); }
+        .menu-open { transform: translateY(0) !important; }
+
+        /* Cart Drawer */
+        #cart-drawer { transform: translateX(100%); transition: transform 0.7s cubic-bezier(0.77, 0, 0.175, 1); background: rgba(5, 5, 5, 0.95); backdrop-filter: blur(20px); }
+        .cart-active { transform: translateX(0) !important; }
+
+        /* Utilities */
+        .glass-panel { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(5px); }
+        .map-point:hover { fill: var(--gold); cursor: pointer; r: 8; transition: all 0.3s ease; }
+        
+        @media (max-width: 768px) {
+            #cursor, #cursor-follower { display: none; }
+            body { cursor: auto; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="preloader">
+        <h1 class="text-3xl serif italic tracking-widest text-gold">Taprobane Brew</h1>
+        <div class="loader-line" id="loader-line"></div>
+    </div>
+
+    <div id="cursor"></div>
+    <div id="cursor-follower"></div>
+    <div id="progress-bar"></div>
+    <div id="canvas-container"></div>
+
+    <nav class="fixed w-full z-50 flex justify-between items-center p-6 md:p-10 mix-blend-difference">
+        <div class="text-xl font-bold tracking-[0.3em] serif uppercase text-gold">Taprobane Brew</div>
+        
+        <div class="hidden md:flex gap-12 items-center text-[10px] uppercase tracking-[0.25em] font-light">
+            <a href="#terroir" class="hover:text-gold transition">The Map</a>
+            <a href="#ritual" class="hover:text-gold transition">The Ritual</a>
+            <a href="#collection" class="hover:text-gold transition">Collection</a>
+            <button onclick="toggleCart()" class="border border-white/20 px-5 py-2 rounded-full hover:border-gold hover:text-gold transition">
+                Cart (<span id="cart-count">0</span>)
+            </button>
+        </div>
+
+        <button class="md:hidden z-50 space-y-1.5 group" onclick="toggleMenu()">
+            <div class="w-8 h-[1px] bg-white group-hover:bg-gold transition"></div>
+            <div class="w-8 h-[1px] bg-white group-hover:bg-gold transition"></div>
+        </button>
+    </nav>
+
+    <div id="mobile-menu" class="fixed inset-0 bg-black z-40 flex flex-col justify-center items-center gap-8">
+        <a href="#terroir" onclick="toggleMenu()" class="text-4xl serif italic text-gray-400 hover:text-gold">Origins</a>
+        <a href="#ritual" onclick="toggleMenu()" class="text-4xl serif italic text-gray-400 hover:text-gold">Ritual</a>
+        <a href="#collection" onclick="toggleMenu()" class="text-4xl serif italic text-gray-400 hover:text-gold">Shop</a>
+        <button onclick="toggleMenu(); toggleCart()" class="text-sm uppercase tracking-widest text-gold border border-gold px-8 py-3 rounded-full mt-8">Open Cart</button>
+    </div>
+
+    <section class="min-h-screen flex flex-col justify-center items-center text-center px-4 relative">
+        <div class="z-10 mt-20">
+            <p class="text-[10px] uppercase tracking-[0.5em] text-gold mb-6 opacity-0 reveal">Est. 2026 | Ceylon</p>
+            <h1 class="text-6xl md:text-[130px] leading-none mb-8 opacity-0 reveal font-light">
+                An Ancient <br> <span class="italic font-normal">Geometry.</span>
+            </h1>
+            <p class="max-w-md mx-auto text-gray-400 text-sm leading-loose opacity-0 reveal font-light">
+                Tracing the <em>Liyawel</em> vines from the temple stone to the tea bush. <br>
+                Sustainable. Single-Origin. Sacred.
+            </p>
+        </div>
+        <div class="absolute bottom-10 animate-bounce opacity-30">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        </div>
+    </section>
+
+    <section id="terroir" class="py-32 px-6 max-w-7xl mx-auto">
+        <div class="grid md:grid-cols-2 gap-16 items-center">
+            <div class="order-2 md:order-1 relative">
+                <svg viewBox="0 0 400 600" class="w-full h-auto drop-shadow-2xl overflow-visible">
+                    <path d="M200,50 C230,60 260,100 250,150 C240,200 280,250 290,300 C300,350 280,450 240,500 C200,550 150,530 120,480 C90,430 80,350 100,250 C110,180 150,100 200,50 Z" 
+                          fill="none" stroke="#333" stroke-width="1" />
+                    
+                    <circle cx="180" cy="280" r="4" fill="#555" class="map-point" data-region="Nuwara Eliya" data-desc="6,000ft Elevation. Notes of Cypress & Eucalyptus.">
+                        <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <circle cx="150" cy="300" r="4" fill="#555" class="map-point" data-region="Dimbula" data-desc="Western Slopes. Golden hue with a jasmine finish.">
+                    </circle>
+
+                    <circle cx="220" cy="450" r="4" fill="#555" class="map-point" data-region="Ruhuna" data-desc="Low Grown. Thick, sweet, and malty chocolate notes.">
+                    </circle>
+                </svg>
+                
+                <div id="map-tooltip" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 border border-gold/30 p-6 backdrop-blur-md opacity-0 transition-opacity duration-300 pointer-events-none text-center min-w-[250px]">
+                    <h3 class="text-2xl serif text-gold italic mb-2" id="tooltip-title">Region</h3>
+                    <p class="text-xs tracking-widest text-gray-300" id="tooltip-desc">Description</p>
+                </div>
+            </div>
+            
+            <div class="order-1 md:order-2">
+                <h2 class="text-5xl serif mb-8">The Terroir</h2>
+                <p class="text-gray-400 mb-6 leading-relaxed">
+                    Sri Lanka is an island of micro-climates. Just as the <strong class="text-gold">Liyawel</strong> motif intertwines, our roots connect distinct ecosystems.
+                </p>
+                <div class="space-y-6 border-l border-white/10 pl-6">
+                    <div>
+                        <h4 class="text-lg serif text-white">2026 Harvest Standards</h4>
+                        <p class="text-xs text-gray-500 mt-1">100% Hand-picked. No machines. Preserving the "Two leaves and a bud" integrity.</p>
+                    </div>
+                    <div>
+                        <h4 class="text-lg serif text-white">The Human Element</h4>
+                        <p class="text-xs text-gray-500 mt-1">Our "New Era Management" model ensures fair wages and housing for estate communities before a single leaf is sold.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="ritual" class="bg-[#080808] py-32 px-6">
+        <div class="max-w-4xl mx-auto text-center mb-16">
+            <h2 class="text-4xl serif italic text-gold mb-4">The Ritual</h2>
+            <p class="text-xs uppercase tracking-widest text-gray-500">Respect the Leaf</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div class="glass-panel p-8 text-center hover:bg-white/5 transition duration-500">
+                <span class="text-4xl serif block mb-4">01</span>
+                <h3 class="text-lg mb-2">The Temperature</h3>
+                <p class="text-sm text-gray-400">95°C. Never boiling. Let the oxygen remain in the water to release the top notes.</p>
+            </div>
+            <div class="glass-panel p-8 text-center hover:bg-white/5 transition duration-500">
+                <span class="text-4xl serif block mb-4">02</span>
+                <h3 class="text-lg mb-2">The Awakening</h3>
+                <p class="text-sm text-gray-400">Pour a splash, rinse the leaves for 5 seconds, and discard. This wakes up the tea.</p>
+            </div>
+            <div class="glass-panel p-8 text-center hover:bg-white/5 transition duration-500">
+                <span class="text-4xl serif block mb-4">03</span>
+                <h3 class="text-lg mb-2">The Steep</h3>
+                <p class="text-sm text-gray-400">3 minutes for Gold. 5 minutes for Ruhuna. Patience is the only secret ingredient.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="collection" class="py-32 px-6">
+        <div class="text-center mb-24">
+            <h2 class="text-6xl serif">The Collection</h2>
+            <div class="h-[1px] w-20 bg-gold mx-auto mt-6"></div>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-12 max-w-7xl mx-auto">
+            <div class="group relative cursor-pointer" onclick="addToCart('Royal Nuwara Eliya', 34, 'https://images.unsplash.com/photo-1433891248364-3ce993ff0e92?q=80&w=1170&auto=format&fit=crop')">
+                <div class="aspect-[3/4] overflow-hidden bg-gray-900 mb-6">
+                    <img src="https://images.unsplash.com/photo-1651934594725-c524dfb7ae82?q=80&w=1048&auto=format&fit=crop" class="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:scale-105 transition duration-700">
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <h3 class="text-2xl serif italic">Royal Nuwara Eliya</h3>
+                    <span class="text-gold">$34</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 uppercase tracking-widest">Floral / Cypress / Light</p>
+                <div class="absolute top-4 right-4 bg-gold text-black text-[10px] font-bold px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition">Add +</div>
+            </div>
+
+             <div class="group relative cursor-pointer" onclick="addToCart('Midnight Ruhuna', 28, 'https://images.unsplash.com/photo-1651934594725-c524dfb7ae82?q=80&w=1048&auto=format&fit=crop')">
+                <div class="aspect-[3/4] overflow-hidden bg-gray-900 mb-6">
+                    <img src="https://images.unsplash.com/photo-1433891248364-3ce993ff0e92?q=80&w=1170&auto=format&fit=crop" class="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:scale-105 transition duration-700">
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <h3 class="text-2xl serif italic">Midnight Ruhuna</h3>
+                    <span class="text-gold">$28</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 uppercase tracking-widest">Malty / Chocolate / Bold</p>
+                <div class="absolute top-4 right-4 bg-gold text-black text-[10px] font-bold px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition">Add +</div>
+            </div>
+
+             <div class="group relative cursor-pointer" onclick="addToCart('Dimbula Estate', 30, 'https://images.unsplash.com/photo-1544787210-2827255cdba1?auto=format&fit=crop&w=800&q=80')">
+                <div class="aspect-[3/4] overflow-hidden bg-gray-900 mb-6">
+                    <img src="https://5.imimg.com/data5/SELLER/Default/2025/12/570979375/PS/TM/NJ/257307653/dimbula-ceylon-500x500.jpg" class="w-full h-full object-cover grayscale opacity-70 group-hover:grayscale-0 group-hover:scale-105 transition duration-700">
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <h3 class="text-2xl serif italic">Dimbula Estate</h3>
+                    <span class="text-gold">$30</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2 uppercase tracking-widest">Golden / Oak / Crisp</p>
+                <div class="absolute top-4 right-4 bg-gold text-black text-[10px] font-bold px-2 py-1 uppercase opacity-0 group-hover:opacity-100 transition">Add +</div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-20 text-center border-t border-white/5">
+        <h2 class="text-4xl serif text-gold mb-6">Taprobane Brew</h2>
+        <p class="text-xs text-gray-600 uppercase tracking-widest mb-8">Colombo, Sri Lanka | Est. 2026</p>
+        <div class="flex justify-center gap-6 opacity-50">
+            <img src="https://img.icons8.com/ios/50/ffffff/whatsapp--v1.png" class="h-6 hover:opacity-100 cursor-pointer" onclick="checkoutWhatsApp()">
+            <img src="https://img.icons8.com/ios/50/ffffff/instagram-new--v1.png" class="h-6 hover:opacity-100 cursor-pointer">
+        </div>
+    </footer>
+
+    <div id="cart-drawer" class="fixed top-0 right-0 h-full w-full md:w-[500px] z-[100] p-10 flex flex-col shadow-2xl border-l border-gold/20">
+        <div class="flex justify-between items-center mb-12">
+            <h2 class="text-3xl serif italic text-gold">Your Selection</h2>
+            <button onclick="toggleCart()" class="text-[10px] uppercase tracking-widest hover:text-white text-gray-500">Close [x]</button>
+        </div>
+        <div id="cart-items" class="flex-1 overflow-y-auto space-y-6 pr-2">
+            </div>
+        <div class="pt-8 border-t border-white/10 mt-4">
+            <div class="flex justify-between items-end mb-6">
+                <span class="text-xs uppercase tracking-widest text-gray-500">Estimated Total</span>
+                <span id="cart-total" class="text-3xl serif text-white">$0.00</span>
+            </div>
+            <button onclick="checkoutWhatsApp()" class="w-full bg-gold text-black py-4 font-bold uppercase tracking-[0.2em] text-xs hover:bg-white transition duration-500">
+                Reserve via WhatsApp
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. PRELOADER ---
+        window.addEventListener("load", () => {
+            const tl = gsap.timeline();
+            tl.to("#loader-line", { width: "100%", duration: 1.5, ease: "power2.inOut" })
+              .to("#preloader", { y: "-100%", duration: 1, ease: "power4.inOut" })
+              .to(".reveal", { opacity: 1, y: 0, stagger: 0.2, duration: 1, ease: "power3.out" });
+        });
+
+        // --- 2. 3D PARTICLE ENGINE (AROMA) ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Create Particles
+        const particlesGeometry = new THREE.BufferGeometry();
+        const particlesCount = 700;
+        const posArray = new Float32Array(particlesCount * 3);
+
+        for(let i = 0; i < particlesCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 15; // Spread
+        }
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: 0.03,
+            color: 0xd4af37,
+            transparent: true,
+            opacity: 0.8,
+        });
+        const particlesMesh = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particlesMesh);
+        camera.position.z = 5;
+
+        // Mouse Interaction
+        let mouseX = 0;
+        let mouseY = 0;
+        window.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX / window.innerWidth - 0.5;
+            mouseY = event.clientY / window.innerHeight - 0.5;
+        });
+
+        const animateParticles = () => {
+            requestAnimationFrame(animateParticles);
+            particlesMesh.rotation.y += 0.001;
+            particlesMesh.rotation.x += 0.0005;
+            
+            // Subtle paralax based on mouse
+            particlesMesh.rotation.x += mouseY * 0.005;
+            particlesMesh.rotation.y += mouseX * 0.005;
+
+            renderer.render(scene, camera);
+        }
+        animateParticles();
+
+        // --- 3. UI LOGIC ---
+        
+        // Scroll Progress
+        window.onscroll = () => {
+            let winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+            let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            let scrolled = (winScroll / height) * 100;
+            document.getElementById("progress-bar").style.width = scrolled + "%";
+        };
+
+        // Custom Cursor
+        const cursor = document.getElementById('cursor');
+        const follower = document.getElementById('cursor-follower');
+        document.addEventListener('mousemove', (e) => {
+            gsap.to(cursor, { x: e.clientX, y: e.clientY, duration: 0 });
+            gsap.to(follower, { x: e.clientX - 20, y: e.clientY - 20, duration: 0.15 });
+        });
+
+        // Map Tooltips
+        const points = document.querySelectorAll('.map-point');
+        const tooltip = document.getElementById('map-tooltip');
+        const title = document.getElementById('tooltip-title');
+        const desc = document.getElementById('tooltip-desc');
+
+        points.forEach(point => {
+            point.addEventListener('mouseenter', () => {
+                title.innerText = point.dataset.region;
+                desc.innerText = point.dataset.desc;
+                tooltip.style.opacity = 1;
+            });
+            point.addEventListener('mouseleave', () => {
+                tooltip.style.opacity = 0;
+            });
+        });
+
+        // Menu & Cart
+        let menuOpen = false;
+        function toggleMenu() {
+            menuOpen = !menuOpen;
+            document.getElementById('mobile-menu').classList.toggle('menu-open');
+        }
+
+        let cartOpen = false;
+        function toggleCart() {
+            cartOpen = !cartOpen;
+            document.getElementById('cart-drawer').classList.toggle('cart-active');
+        }
+
+        // Cart Logic (Persistent)
+        let cart = JSON.parse(localStorage.getItem('taprobane_flagship')) || [];
+        
+        function updateCartUI() {
+            const container = document.getElementById('cart-items');
+            container.innerHTML = '';
+            let total = 0;
+            
+            if(cart.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-sm italic text-center mt-10">Your collection is empty.</p>';
+            }
+
+            cart.forEach((item, index) => {
+                total += item.price * item.quantity;
+                container.innerHTML += `
+                    <div class="flex gap-4 items-center border-b border-white/5 pb-4">
+                        <img src="${item.img}" class="w-16 h-20 object-cover grayscale opacity-80">
+                        <div class="flex-1">
+                            <h4 class="serif italic text-lg">${item.name}</h4>
+                            <p class="text-xs text-gold">$${item.price}</p>
+                            <div class="flex items-center gap-4 mt-2">
+                                <button onclick="modQty(${index}, -1)" class="text-gray-500 hover:text-white">-</button>
+                                <span class="text-xs font-mono">${item.quantity}</span>
+                                <button onclick="modQty(${index}, 1)" class="text-gray-500 hover:text-white">+</button>
+                            </div>
+                        </div>
+                        <button onclick="removeItem(${index})" class="text-[9px] uppercase text-red-900 hover:text-red-500">Remove</button>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('cart-count').innerText = cart.length;
+            localStorage.setItem('taprobane_flagship', JSON.stringify(cart));
+        }
+
+        function addToCart(name, price, img) {
+            const existing = cart.find(i => i.name === name);
+            if(existing) existing.quantity++;
+            else cart.push({name, price, img, quantity: 1});
+            updateCartUI();
+            if(!cartOpen) toggleCart();
+        }
+
+        function modQty(idx, amt) {
+            cart[idx].quantity += amt;
+            if(cart[idx].quantity <= 0) cart.splice(idx, 1);
+            updateCartUI();
+        }
+
+        function removeItem(idx) {
+            cart.splice(idx, 1);
+            updateCartUI();
+        }
+
+        function checkoutWhatsApp() {
+            if(cart.length === 0) return alert("Please add items to your cart first.");
+            const phone = "94777291785";
+            let msg = "Greetings Taprobane Brew,\n\nI would like to request the following from the 2026 Collection:\n\n";
+            cart.forEach(i => {
+                msg += `— ${i.name} (x${i.quantity}) : $${i.price * i.quantity}\n`;
+            });
+            msg += `\nTotal Estimate: ${document.getElementById('cart-total').innerText}`;
+            msg += `\n\nPlease advise on payment and delivery to my location.`;
+            
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+
+        // Initialize
+        updateCartUI();
+    </script>
+</body>
+</html>
